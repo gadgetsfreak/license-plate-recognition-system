@@ -40,7 +40,6 @@ class GetLicensePlateNumber:
         self.cnts=sorted(self.cnts, key = cv2.contourArea, reverse = True)[:30] #sort contours based on their area keeping minimum required area as '30' (anything smaller than this will not be considered)
         self.NumberPlateCnt = None #we currently have no Number plate contour
         # loop over our contours to find the best possible approximate contour of number plate
-        count = 0
         for c in self.cnts:
                 peri = cv2.arcLength(c, True)
                 approx = cv2.approxPolyDP(c, 0.02 * peri, True)
@@ -218,12 +217,6 @@ class GetLicensePlateNumber:
         char_list = self.find_contours_of_numbers(dimensions, img_binary_lp)
 
         return char_list
-    def get_img_numbers(self,char):
-        self.new_char=[]
-        for x in range(len(char)):
-            if(not 255 in char[x][2]):
-                self.new_char.append(char[x])
-
     """The above function takes in the image as input and performs the following operation on it:
     - Resizes it to a dimension such that all characters seem distinct and clear.
     - Convert the colored image to a gray scaled image. We do this to prepare the image for the next process.
@@ -233,6 +226,12 @@ class GetLicensePlateNumber:
     - The next step now is to make the boundaries of the image white. This is to remove any out of the frame pixel in case it is present.
     - Next, we define a list of dimensions that contains 4 values with which we’ll be comparing the character’s dimensions for filtering out the required characters.
     - Through the above processes, we have reduced our image to a processed binary image and we are ready to pass this image for character extraction."""
+    def get_img_numbers(self,char):
+        self.new_char=[]
+        for x in range(len(char)):
+            if(not 255 in char[x][2]):
+                self.new_char.append(char[x])
+
     def load_saved_weights(self):
         """Since the data is all clean and ready, now it’s time do create a Neural Network that will be intelligent enough to recognize the characters after training. In this project, we used CNN model for character recognition.
         - For training the model, we’ll be using ImageDataGenerator class available in keras to generate some more data using image augmentation techniques like width shift, height shift.
@@ -270,25 +269,21 @@ class GetLicensePlateNumber:
         dic = {}
         characters = '0123456789'
         for i,c in enumerate(characters):
-            dic[i] = c
+            dic[i] = c#puts characters in dictionary 
 
         output = []
         for i,ch in enumerate(self.new_char): #iterating over the characters
-            img_ = cv2.resize(ch, (28,28), interpolation=cv2.INTER_AREA)
-            img = self.fix_dimension(img_)
+            img = cv2.resize(ch, (28,28), interpolation=cv2.INTER_AREA)
+            img = self.fix_dimension(img)
             img = img.reshape(1,28,28,3) #preparing image for the model
-            y_ = np.argmax(self.loaded_model.predict(img)[0], axis=-1) #predicting the class
-            character = dic[y_]
+            y = np.argmax(self.loaded_model.predict(img)[0], axis=-1) #predicting the class
+            character = dic[y]
             output.append(character) #storing the result in a list
-            
-
         plate_number = ''.join(output)
 
         return plate_number
     def predict_numbers_value(self):
+        #returns license plate number
         plate_number=self.show_results()
         print(self.show_results())
-        # Segmented characters and their predicted value.
-        for i,ch in enumerate(self.new_char):
-            img = cv2.resize(ch, (28,28), interpolation=cv2.INTER_AREA)
         return plate_number
