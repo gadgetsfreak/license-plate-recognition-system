@@ -7,11 +7,9 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import math
 from sklearn.metrics import f1_score
-
 import tensorflow as tf
 import tensorflow.keras.backend as K
 from tensorflow.keras import optimizers
-
 from keras.layers import Flatten, Dense, Conv2D, MaxPooling2D, Input, Dropout
 from keras.models import Model, Sequential
 from keras.preprocessing.image import ImageDataGenerator
@@ -21,36 +19,21 @@ class GetLicensePlateNumber:
     def __init__(self,imgPath='vehicle1.jpg'):
         # Read the image file
         self.image = cv2.imread(imgPath)
-        t=cv2.cvtColor(self.image, cv2.COLOR_BGR2RGB)
-        plt.imshow(t)
-        plt.title('Original Image')
-        plt.show()
         self.image = imutils.resize(self.image, width=500)
         self.img=cv2.cvtColor(self.image, cv2.COLOR_BGR2RGB)
         # Display the original image
-        self.fig, self.ax = plt.subplots(2, 2, figsize=(10,7))
-        self.ax[0,0].imshow(cv2.cvtColor(self.image, cv2.COLOR_BGR2RGB))
-        self.ax[0,0].set_title('Original Image')
     def img_processing(self,):
         # RGB to Gray scale conversion
         gray = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
-        self.ax[0,1].imshow(gray, cmap='gray')
-        self.ax[0,1].set_title('Grayscale Conversion')
 
         blur = cv2.GaussianBlur(gray, (3,3), 0)
 
         # Noise removal with iterative bilateral filter(removes noise while preserving edges)
         gray = cv2.bilateralFilter(blur, 11, 17, 17)
-        self.ax[1,0].imshow(gray, cmap='gray')
-        self.ax[1,0].set_title('Bilateral Filter')
 
         # Find Edges of the grayscale image
         self.edged = cv2.Canny(gray, 170, 200)
-        self.ax[1,1].imshow(self.edged, cmap='gray')
-        self.ax[1,1].set_title('Canny Edges')
 
-        self.fig.tight_layout()
-        plt.show()
     def find_contours(self,):
         # Find contours based on Edges
         self.cnts = cv2.findContours(self.edged.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[0]
@@ -63,21 +46,12 @@ class GetLicensePlateNumber:
                 approx = cv2.approxPolyDP(c, 0.02 * peri, True)
                 if len(approx) == 4:  # Select the contour with 4 corners
                     self.NumberPlateCnt = approx #This is our approx Number Plate Contour
-                    x,y,w,h = cv2.boundingRect(c)
-                    self.ROI = self.img[y:y+h, x:x+w]
+                    x,y,w,h = cv2.boundingRect(c)#gets x and y coordinates and width and height to crop image
+                    self.ROI = self.img[y:y+h, x:x+w]#crops image
                     break
 
-        if self.NumberPlateCnt is not None:
-            # Drawing the selected contour on the original image
-            cv2.drawContours(self.image, [self.NumberPlateCnt], -1, (0,255,0), 3)
-        plt.imshow(cv2.cvtColor(self.image, cv2.COLOR_BGR2RGB))
-        plt.title("Detected license plate")
-        plt.show()
         #The green bounding box shows the detected license plate.
         # Find bounding box and extract ROI
-        plt.imshow(self.ROI)
-        plt.title("Extracted license plate")
-        plt.show()
         #The above displayed coordinates are the coordinates of the detected plate. But the problem is that we don't know which coordinate is where, because contours can start from anywhere and form a continuous path.
 
     #The idea behind plate rotation is to find the bottom two coordinates. Using these two coordinates, we can easily find the angle of rotation. This will be illustrated shortly.
@@ -87,8 +61,8 @@ class GetLicensePlateNumber:
     def straighten_licenseplate(self,):
         """The above function returns the Euclidean distance between any two points (x1, y1) and (x2, y2).
         As discussed, we need to find the bottom two coordinates:
-        - To find them, we'll first find a coordinate with the maximum y-coordinate and this will be one of the two bottom-most coordinates.
-        - Now, the other bottom coordinate will be either to the left or right of this coordinate in the array. Since, license plates are rectangular in shape, the second required coordinate would be in a distance far away from the acquired coordinate than the other adjacent coordinate."""
+        To find them, we'll first find a coordinate with the maximum y-coordinate and this will be one of the two bottom-most coordinates.
+        Now, the other bottom coordinate will be either to the left or right of this coordinate in the array. Since, license plates are rectangular in shape, the second required coordinate would be in a distance far away from the acquired coordinate than the other adjacent coordinate."""
         idx=0
         m=0
         # To find the index of coordinate with maximum y-coordinate
@@ -109,7 +83,7 @@ class GetLicensePlateNumber:
         else:
             nin=idx+1
 
-        # Find self.distances between the acquired coordinate and its previous and next coordinate
+        # Find distances between the acquired coordinate and its previous and next coordinate
         p=self.dist(self.NumberPlateCnt[idx][0][0], self.NumberPlateCnt[pin][0][0], self.NumberPlateCnt[idx][0][1], self.NumberPlateCnt[pin][0][1])
         n=self.dist(self.NumberPlateCnt[idx][0][0], self.NumberPlateCnt[nin][0][0], self.NumberPlateCnt[idx][0][1], self.NumberPlateCnt[nin][0][1])
 
@@ -143,9 +117,9 @@ class GetLicensePlateNumber:
         theta=math.asin(sin)*57.2958
 
         # Rotate the image according to the angle of rotation obtained
-        image_center = tuple(np.array(self.ROI.shape[1::-1]) / 2)
-        rot_mat = cv2.getRotationMatrix2D(image_center, theta, 1.0)
-        result = cv2.warpAffine(self.ROI, rot_mat, self.ROI.shape[1::-1], flags=cv2.INTER_LINEAR)
+        image_center = tuple(np.array(self.ROI.shape[1::-1]) / 2)#gets center of image
+        rot_mat = cv2.getRotationMatrix2D(image_center, theta, 1.0)#gets rotation matrix
+        result = cv2.warpAffine(self.ROI, rot_mat, self.ROI.shape[1::-1], flags=cv2.INTER_LINEAR)#rotate the image
 
         # The image can be cropped after rotation( since rotated image takes much more height)
         if opp>0:
@@ -154,9 +128,6 @@ class GetLicensePlateNumber:
             h=result.shape[0]+opp//2
 
         self.result=result[0:h, :]
-        plt.imshow(self.result)
-        plt.title("Plate obtained after rotation")
-        plt.show()
         return self.result
     ## Character Segmentation
     #Character segmentation is an operation that seeks to decompose an image of a sequence of characters into subimages of individual symbols. It is one of the decision processes in a system for optical character recognition (OCR).
@@ -176,9 +147,8 @@ class GetLicensePlateNumber:
         
         # Check largest 5 or  15 contours for license plate or character respectively
         cntrs = sorted(cntrs, key=cv2.contourArea, reverse=True)[:15]
-        ii = cv2.imread('contour.jpg')
+        img = img
         x_cntr_list = []
-        target_contours = []
         img_res = []
         for cntr in cntrs :
             # detects contour in binary image and returns the coordinates of rectangle enclosing it
@@ -193,9 +163,7 @@ class GetLicensePlateNumber:
                 char = img[intY:intY+intHeight, intX:intX+intWidth]
                 char = cv2.resize(char, (20, 40))
                 
-                cv2.rectangle(ii, (intX,intY), (intWidth+intX, intY+intHeight), (50,21,200), 2)
-                plt.imshow(ii, cmap='gray')
-                plt.title('Predict Segments')
+                cv2.rectangle(img, (intX,intY), (intWidth+intX, intY+intHeight), (50,21,200), 2)
 
                 # Make result formatted for classification: invert colors
                 char = cv2.subtract(255, char)
@@ -207,10 +175,8 @@ class GetLicensePlateNumber:
                 char_copy[42:44, :] = 0
                 char_copy[:, 22:24] = 0
 
-                img_res.append(char_copy) # List that stores the character's binary image (unsorted)
-        # Return characters on ascending order with respect to the x-coordinate (most-left character first)
-                
-        plt.show()
+                img_res.append(char_copy) # List that stores the character's binary image unsorted
+        # Return characters on ascending order with respect to the x-coordinate (left to right)
         # arbitrary function that stores sorted list of character indeces
         indices = sorted(range(len(x_cntr_list)), key=lambda k: x_cntr_list[k])
         img_res_copy = []
@@ -219,8 +185,8 @@ class GetLicensePlateNumber:
         img_res = np.array(img_res_copy)
         return img_res
     """In the above function, we will be applying some more image processing to extract the individual characters from the license plate. The steps involved will be:
-    - Finding all the contours in the input image. The function cv2.findContours returns all the contours it finds in the image.
-    - After finding all the contours we consider them one by one and calculate the dimension of their respective bounding rectangle. Now consider bounding rectangle is the smallest rectangle possible that contains the contour. All we need to do is do some parameter tuning and filter out the required rectangle containing required characters. For this, we will be performing some dimension comparison by accepting only those rectangle that have:
+    Finding all the contours in the input image. The function cv2.findContours returns all the contours it finds in the image.
+    After finding all the contours we consider them one by one and calculate the dimension of their respective bounding rectangle. Now consider bounding rectangle is the smallest rectangle possible that contains the contour. All we need to do is do some parameter tuning and filter out the required rectangle containing required characters. For this, we will be performing some dimension comparison by accepting only those rectangle that have:
     1. Width in the range 0, (length of the pic)/(number of characters) and,
     2. Length in a range of (width of the pic)/2, 4*(width of the pic)/5. After this step, we should have all the characters extracted as binary images."""
     # Find characters in the resulting images
@@ -247,10 +213,6 @@ class GetLicensePlateNumber:
                         LP_WIDTH/2,
                         LP_HEIGHT/10,
                         2*LP_HEIGHT/3]
-        plt.imshow(img_binary_lp, cmap='gray')
-        plt.title('Contour')
-        plt.show()
-        cv2.imwrite('contour.jpg',img_binary_lp)
 
         # Get contours within cropped license plate
         char_list = self.find_contours_of_numbers(dimensions, img_binary_lp)
@@ -261,11 +223,7 @@ class GetLicensePlateNumber:
         for x in range(len(char)):
             if(not 255 in char[x][2]):
                 self.new_char.append(char[x])
-        for i in range(len(self.new_char)):
-            plt.subplot(1, len(self.new_char), i+1)
-            plt.imshow(self.new_char[i], cmap='gray')
-            plt.axis('off')
-        plt.show()
+
     """The above function takes in the image as input and performs the following operation on it:
     - Resizes it to a dimension such that all characters seem distinct and clear.
     - Convert the colored image to a gray scaled image. We do this to prepare the image for the next process.
@@ -331,19 +289,6 @@ class GetLicensePlateNumber:
         plate_number=self.show_results()
         print(self.show_results())
         # Segmented characters and their predicted value.
-        plt.figure(figsize=(10,6))
         for i,ch in enumerate(self.new_char):
             img = cv2.resize(ch, (28,28), interpolation=cv2.INTER_AREA)
-            plt.subplot(3,4,i+1)
-            plt.imshow(img,cmap='gray')
-            plt.title(f'predicted: {self.show_results()[i]}')
-            plt.axis('off')
-        plt.show()
-licenseplateNumber=GetLicensePlateNumber()
-licenseplateNumber.img_processing()
-licenseplateNumber.find_contours()
-result = licenseplateNumber.straighten_licenseplate()
-char=licenseplateNumber.segment_characters(result)
-licenseplateNumber.get_img_numbers(char)
-licenseplateNumber.load_saved_weights()
-licenseplateNumber.predict_numbers_value()
+        return plate_number

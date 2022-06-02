@@ -1,66 +1,44 @@
-import socket
-from turtle import width
-from PIL import Image
 from tkinter import *
-#import projectGUI
-#import projectServer
-#projectServer.server.
+import socket
+import os
+try:
+    from PIL import Image
+except ImportError:
+    import Image
+
+
 class Client:
     def __init__(self,ip='127.0.0.1',port=12345):
-        self.clientSocket=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.clientSocket.connect((ip,port))
+        self.clientSocket=socket.socket(socket.AF_INET, socket.SOCK_STREAM)#create a socket
+        self.clientSocket.connect((ip,port))#connect to server with ip port
     def send_message(self,msg):
-        self.clientSocket.send(str(msg).encode())
+        self.clientSocket.send(str(msg).encode())#send encoded masseges to server
     def receive_message(self,):
-        data=self.clientSocket.recv(1024).decode()
+        data=self.clientSocket.recv(1024).decode()#receive encoded masseges from server decodes it and return data
         return data
     def send_image(self,):
         filePath='vehicle1.jpg'
-        img = Image.open(filePath)
-        width, height = img.size
-        imgSize=width*height
-        self.send_message(str(imgSize))
-        with open(filePath,'rb') as f:
+        imgSize=os.path.getsize(filePath)
+        self.send_message(str(imgSize))#sends the img size to client
+        with open(filePath,'rb') as f:#open file and reads binary from it
             while True:
-                data=f.read(1024)
+                data=f.read(1024)#reads data
                 if not data:
                     print('{0} send over...'.format(filePath))
                     break
-                self.clientSocket.send(data)
+                self.clientSocket.send(data)#sends data
     def exit(self,):
         self.clientSocket.close()
-#pops a window with a color depending if licenseplate in csv green-in| red-not in
-def pop_window(in_dataset):
-    width=500
-    height=500
-    if(in_dataset):
-        color='green'
-        text='license is in the system'
-        gui = Tk(className='confirmatoin')
-        # set window size
-        gui.geometry(f"{width}x{height}")
-        #set window color
-        gui.configure(bg=color)
-        label1 = Label(gui, text=text, fg='black', bg=color,font=("Courier", 15)).place(x=(width/2)-(8*len(text)),y=height/2-50)
-        gui.mainloop() 
-    else:
-        color='red'
-        text='license is not in the system'
-        gui = Tk(className='confirmatoin')
-        # set window size
-        gui.geometry(f"{width}x{height}")
-        #set window color
-        gui.configure(bg=color)
-        label1 = Label(gui, text=text, fg='black', bg=color,font=("Courier", 15)).place(x=(width/2)-(7*len(text)),y=height/2-50)
-        gui.mainloop() 
-pop_window(False)
 
-if __name__ == '__main__':
+def main():
     client=Client()
     data=client.receive_message()
     print(data)
     client.send_image()
-
+    isInDataset=client.receive_message()
+    print(isInDataset)
+    client.exit()
+    return isInDataset
 
 
 

@@ -30,6 +30,7 @@ validation_generator = train_datagen.flow_from_directory(
         target_size=(28,28),  # all images will be resized to 28x28 batch_size=1,
         class_mode='sparse')
 K.clear_session()
+#build model to train the dataset and saves it
 model = Sequential()
 model.add(Conv2D(16, (22,22), input_shape=(28, 28, 3), activation='relu', padding='same'))
 model.add(Conv2D(32, (16,16), input_shape=(28, 28, 3), activation='relu', padding='same'))
